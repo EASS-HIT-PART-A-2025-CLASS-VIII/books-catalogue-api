@@ -1,0 +1,20 @@
+### List all books
+GET http://127.0.0.1:8000/books
+
+### Create a new book
+POST http://127.0.0.1:8000/books
+Content-Type: application/json
+
+{
+  "title": "1984",
+  "author": "George Orwell",
+  "description": "Dystopian classic",
+  "year": 1949,
+  "genre": "Fiction"
+}
+
+### Get book by ID
+GET http://127.0.0.1:8000/books/1
+
+### Delete a book
+DELETE http://127.0.0.1:8000/books/1
