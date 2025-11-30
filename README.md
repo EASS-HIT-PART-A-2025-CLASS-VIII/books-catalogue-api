@@ -47,7 +47,7 @@ Install dependencies (creates venv automatically):
 Run the API:
 
 ```bash
-  uv run python -m book_service.app.main
+  uv run uvicorn book_service.app.main:app --reload
 ```
 Access the API:
 
