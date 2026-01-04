@@ -1,23 +1,35 @@
 
 # 📚 Books Catalogue API
 
-A FastAPI-based backend service for managing a catalogue of books, now persisting data using SQLite and SQLModel.
 
-This project was developed as part of EASS – EX01 & EX02 (Session 04 Integration).
+A FastAPI-based backend service for managing a catalogue of books, now with a friendly interface (CLI with Typer) and full SQLite persistence via SQLModel.
 
-
+This project implements EX01 (backend API) and EX02 (friendly interface)
 ## ⚡ Features
 
-- CRUD endpoints for books (`/books`)
+- CRUD endpoints for books (/books)
 - Validation using Pydantic
-- Fully tested with `pytest`
-- Persistent Storage: SQLite database integration via SQLModel.
-- Database Migrations: Schema versioning using Alembic.
+- Persistent Storage: SQLite database integration via SQLModel
+- Database Migrations: Alembic schema versioning
 - Seed script for example books
-- HTTP playground for easy testing
+- EX02: Friendly interface using Typer CLI
+- CLI features:
+
+    - List all books 
+
+    - Add a new book 
+
+    - Read a book by ID
+    
+    - Delete a book by ID
+    
+    - Export books to CSV 
+
+- Bonus: automated CLI test using Typer's CliRunner
+
 - Docker support for isolated environment
 
-
+- HTTP playground for quick API testing
 ## 🐳 Requirements
 - Python 3.12+
 
@@ -51,9 +63,17 @@ Install dependencies (creates venv automatically):
 
 To run this project, you will need to add the following environment variables to your .env file
 
-`BOOKS_DATABASE_URL="sqlite:///./data/books.db"`
+Recommended environment variables (file: `.env`):
 
-`BOOKS_APP_NAME="Book Catalogue Service"`
+`BOOK_APP_NAME="Book Catalogue Service"`
+
+`BOOK_DB_MODE=sqlite`  
+
+`BOOK_DATABASE_URL_SQLITE="sqlite:///./data/books.db"`
+
+`BOOK_API_BASE_URL="http://127.0.0.1:8000"`  # used by the Typer CLI (`interface.client`)
+
+Note: BOOK_DB_MODE options are memory | sqlite | postgres
 
 #### Database Initialization (Migrations)
 
@@ -63,7 +83,8 @@ mkdir -p data
 uv run alembic upgrade head 
 ```
 
-Run the API:
+### 🚀 Running the Backend + CLI
+#### Start the FastAPI backend
 
 ```bash
 uv run uvicorn book_service.app.main:app --reload
@@ -74,6 +95,60 @@ Access the API:
 
 - OpenAPI docs: http://127.0.0.1:8000/docs
 
+#### Start the Typer CLI
+In a new terminal (ensure .env is loaded):
+
+```bash
+uv run python -m interface.cli --help
+```
+Available commands:
+```bash
+Usage: cli.py [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  health   Check backend health
+  list     List all books
+  add      Add a new book (interactive)
+  read     Read a book by ID
+  delete   Delete a book by ID
+  export   Export all books to CSV
+
+```
+#### Example CLI Usage
+Check backend health
+``` bash
+uv run python -m interface.cli health
+```
+
+List all books
+``` bash
+uv run python -m interface.cli list
+```
+
+Add a book interactively
+``` bash
+uv run python -m interface.cli add
+# Prompts for Title, Author, Description, Year, Genre
+```
+Read a book by ID
+``` bash
+uv run python -m interface.cli read 1
+
+```
+
+Delete a book by ID
+``` bash
+uv run python -m interface.cli delete 1
+
+```
+
+Export all books to CSV
+``` bash
+uv run python -m interface.cli export --filepath my_books.csv
+```
 
 ## Option B - Using Docker
 Build the Docker image:
@@ -91,13 +166,29 @@ Access the API:
 http://127.0.0.1:8000
 
 ## 🧪 Running Tests
+### Backend Tests
 
-To run tests, run the following command:
+To run tests for backend, run the following command:
 
 ```bash
   uv run pytest book_service/tests -v
 ```
 
+### Bonus: CLI Automated Test (EX02)
+To run the bonus test using Typer’s CliRunner:
+``` bash 
+uv run pytest interface/test_cli.py -v
+```
+This automates workflows like:
+
+- Adding a book
+
+- Listing books
+
+- Exporting CSV
+
+Note: Bonus CLI tests are hermetic and mock network calls using monkeypatch,
+so the backend does not need to be running.
 
 ## 🌱 Seed Example Books
 Populate the repository with example books:
@@ -117,7 +208,7 @@ You can quickly test the API endpoints using the VS Code REST Client, Postman, o
 
 ### Health Check
 ```http
-GET http://127.0.0.1:8000/health
+GET http://127.0.0.1:8000/healthz
 ```
 
 ### List all books
