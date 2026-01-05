@@ -1,61 +1,57 @@
 # filepath: book_service/app/repository.py
-from __future__ import annotations
 
-from typing import Dict
-
+from typing import Optional, Dict
 from .models import Book, BookCreate
 
-
 class BookRepository:
-    """In-memory storage for books.
-
-    You can swap in SQLModel + SQLite later without changing the
-    interface (list/create/get/delete), so routes stay the same.
+    """
+    In-memory storage for books.
+    This implementation does NOT require a database session.
+    Used when BOOK_DB_MODE="memory".
     """
 
     def __init__(self) -> None:
+        """Initializes the repository with an empty dictionary."""
         self._items: Dict[int, Book] = {}
         self._next_id = 1
 
-    def list(self) -> list[Book]:
-        """Get all books.
-        
-        Always returns list[books] for consistency. SQLModel queries
-        return sequences, but convert with list() to maintain this interface.
+    def list(self, *, skip: int = 0, limit: int = 100) -> list[Book]:
         """
-        return list(self._items.values())
+        Get all books with pagination support.
+        """
+        all_books = list(self._items.values())
+        return all_books[skip : skip + limit]
 
     def create(self, payload: BookCreate) -> Book:
-        """Add a new book and return it with assigned ID.
-        
-        In a SQLModel-backed version this maps to `session.add()` +
-        `session.commit()` while keeping the same signature.
+        """
+        Add a new book to the dictionary and return it with an assigned ID.
         """
         book = Book(id=self._next_id, **payload.model_dump())
         self._items[book.id] = book
         self._next_id += 1
         return book
 
-    def get(self, book_id: int) -> Book | None:
-        """Get a book by ID, or None if not found.
-        
-        A SQLModel-backed repository would use `session.get(Book, book_id)`.
+    def get(self, book_id: int) -> Optional[Book]:
+        """
+        Get a book by ID, or None if not found.
         """
         return self._items.get(book_id)
 
-    def delete(self, book_id: int) -> None:
-        """Remove a book by ID.
-        
-        A SQLModel-backed repository would call `session.delete()` +
-        `session.commit()`.
+    def delete(self, book_id: int) -> bool:
         """
-        self._items.pop(book_id, None)
+        Remove a book by ID. 
+        Returns True if deleted, False if not found.
+        """
+        if book_id in self._items:
+            self._items.pop(book_id)
+            return True
+        return False
 
-    def clear(self) -> None:
-        """Remove all books (useful for tests).
-        
-        SQL-backed fixtures should use separate test databases instead of
-        clearing a shared repository.
+    def delete_all(self) -> int:
         """
+        Remove all books. Useful for resetting state between tests.
+        """
+        count = len(self._items)
         self._items.clear()
         self._next_id = 1
+        return count

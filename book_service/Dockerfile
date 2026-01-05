@@ -18,6 +18,8 @@ COPY pyproject.toml uv.lock ./
 # --no-dev: skip dev dependencies like pytest
 RUN uv sync --frozen --no-dev
 
+RUN mkdir -p /app/data
+
 # Copy application code
 COPY book_service ./book_service
 

@@ -10,7 +10,7 @@ needing a real server.
 
 def test_health_includes_app_name(client):
     """Health endpoint returns status and app name."""
-    response = client.get("/health")
+    response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"

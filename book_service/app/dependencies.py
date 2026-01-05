@@ -1,27 +1,35 @@
 # filepath: book_service/app/dependencies.py
-from collections.abc import Generator
-from typing import Annotated
+
+
+from typing import Annotated, Protocol
 
 from fastapi import Depends
 
-from .config import Settings
-from .repository import BookRepository
-
-# Create singletons
-_settings = Settings()
-_repository = BookRepository()
+from .database import SessionDep, SettingsDep
+from .repository import BookRepository as InMemoryRepository
+from .repository_db import BookRepository as SqlRepository
 
 
-def get_settings() -> Settings:
-    """Provide settings to endpoints."""
-    return _settings
+
+class BookRepositoryProtocol(Protocol):
+    def list(self, *, skip: int = 0, limit: int = 100): ...
+    def create(self, payload): ...
+    def get(self, book_id: int): ...
+    def delete(self, book_id: int): ...
 
 
-def get_repository() -> Generator[BookRepository, None, None]:
-    """Provide repository to endpoints."""
-    yield _repository
+# singleton in-memory repo
+# _memory_repo = InMemoryRepository()
 
 
-# Type aliases for cleaner endpoint signatures
-SettingsDep = Annotated[Settings, Depends(get_settings)]
-RepositoryDep = Annotated[BookRepository, Depends(get_repository)]
+def get_repository(settings: SettingsDep, session: SessionDep) -> BookRepositoryProtocol:
+    if settings.db_mode == "memory":
+        return InMemoryRepository()
+    # if settings.db_mode == "memory":
+    #     return _memory_repo  # always return the same instance
+    if session is None:
+        raise RuntimeError("Database session required for non-memory modes")
+    return SqlRepository(session)
+
+
+RepositoryDep = Annotated[BookRepositoryProtocol, Depends(get_repository)]

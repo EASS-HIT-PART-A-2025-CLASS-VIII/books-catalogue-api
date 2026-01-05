@@ -1,22 +1,43 @@
-# filepath: book_service/app/main.py
 from __future__ import annotations
-
+import uuid
 import logging
 
-from fastapi import FastAPI, HTTPException, status
-from .dependencies import RepositoryDep, SettingsDep
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+
+from .database import engine, SettingsDep
+from .dependencies import RepositoryDep
 from .models import Book, BookCreate
 
 logger = logging.getLogger("book-service")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-app = FastAPI(title="Book Service", version="0.1.0")
+app = FastAPI(title="Book Service", version="0.5.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8501", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+@app.middleware("http")
+async def add_trace_id(request: Request, call_next):
+    trace_id = request.headers.get("X-Trace-Id") or f"req-{uuid.uuid4().hex[:8]}"
+    request.state.trace_id = trace_id
+    response = await call_next(request)
+    response.headers["X-Trace-Id"] = trace_id
+    return response
 
-@app.get("/health", tags=["diagnostics"])
-def health(settings: SettingsDep) -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "ok", "app": settings.app_name}
+@app.get("/healthz", tags=["health"])
+def healthcheck(settings: SettingsDep) -> dict[str, str]:
+    if engine:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    backend = settings.db_mode if engine else "memory"
+    return {"status": "ok", "app": settings.app_name, "database": backend}
+
 
 
 @app.get("/books", response_model=list[Book], tags=["books"])
@@ -67,3 +88,6 @@ def delete_book(book_id: int, repository: RepositoryDep) -> None:
         )
     repository.delete(book_id)
     logger.info("book.deleted id=%s", book_id)
+
+
+
