@@ -70,15 +70,25 @@ cp .env.example .env
 Here’s a valid .env example::
 
 `BOOK_APP_NAME="Book Service"`
+
 `BOOK_DEFAULT_PAGE_SIZE=20`
+
 `BOOK_FEATURE_PREVIEW=false`
+
 `BOOK_DB_MODE=sqlite`
+
 `BOOK_DATABASE_URL_SQLITE=sqlite:///./data/books.db`
+
 `BOOK_DATABASE_URL_TEST=sqlite:///./data/books-test.db`
+
 `BOOK_DATABASE_URL_POSTGRES=postgresql+psycopg://book:book@localhost:5432/books`
+
 `BOOK_DATABASE_ECHO=false`
+
 `BOOK_POOL_SIZE=5`
+
 `BOOK_POOL_TIMEOUT=30`
+
 `BOOK_API_BASE_URL=http://127.0.0.1:8000`
 
 Note: BOOK_DB_MODE options are memory | sqlite | postgres
