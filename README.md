@@ -37,6 +37,26 @@ This project implements EX01 (backend API) and EX02 (friendly interface)
 
 - Docker (optional, for containerized runs)
 
+## 📂 Project Structure
+```bash
+  books-catalogue-api/
+  ├── book_service/        # Backend (FastAPI)
+  │   ├── app/
+  │   ├── Dockerfile
+  │   └── tests/
+  ├── interface/           # CLI (Typer)
+  │   ├── cli.py
+  │   ├── client.py
+  │   ├── Dockerfile
+  │   └── test_cli.py
+  ├── migrations/          # Alembic migrations
+  ├── data/                # SQLite databases (mounted)
+  ├── docker-compose.yml
+  ├── .env.example
+  ├── pyproject.toml
+  └── README.md
+```
+
 ## 🛠 Setup and Run
 
 Clone the project:
@@ -89,7 +109,7 @@ Here’s a valid .env example::
 
 `BOOK_POOL_TIMEOUT=30`
 
-`BOOK_API_BASE_URL=http://127.0.0.1:8000`
+`BOOK_API_BASE_URL=http://backend:8000`
 
 Note: BOOK_DB_MODE options are memory | sqlite | postgres
 
@@ -170,20 +190,46 @@ Export all books to CSV
 uv run python -m interface.cli export --filepath my_books.csv
 ```
 
-## Option B - Using Docker
-Build the Docker image:
+## 🐳 Option B – Running with Docker (Backend + CLI)
+
+This project includes two Docker images:
+* Backend – FastAPI service
+* Frontend – Typer CLI (EX02)
+They are orchestrated using Docker Compose.
+
+### 📦 Build and Run All Services
+From the project root:
 
 ```bash
-  docker build -t book-service -f book_service/Dockerfile .
+docker compose up --build
 ```
-Run the container:
+This will start:
+* Backend API on http://localhost:8000
+* CLI container (interactive)
+* PostgreSQL (optional, if enabled)
+
+Note:
+- When running locally, use:
+  BOOK_API_BASE_URL=http://127.0.0.1:8000
+- When running with Docker Compose, use:
+  BOOK_API_BASE_URL=http://backend:8000
+
+### 🧪 Using the CLI (EX02)
+Open a shell inside the CLI container:
 
 ```bash
-  docker run -p 8000:8000 --env-file .env -v $(pwd)/data:/app/data book-service
+docker exec -it books-cli bash
 ```
+Run CLI commands:
 
-Access the API:
-http://127.0.0.1:8000
+```bash
+uv run python -m interface.cli health
+uv run python -m interface.cli list
+uv run python -m interface.cli add
+uv run python -m interface.cli export --filepath books.csv
+```
+Note: The CLI communicates with the backend via HTTP using BOOK_API_BASE_URL.
+
 
 ## 🧪 Running Tests
 ### Backend Tests
@@ -205,15 +251,13 @@ This automates workflows like:
 
 - Listing books
 
-- Exporting CSV
-
 Note: Bonus CLI tests are hermetic and mock network calls using monkeypatch,
 so the backend does not need to be running.
 
 ## 🌱 Seed Example Books
 Populate the repository with example books:
 ```bash
-uv run python -m book_service.scripts.seed_books
+uv run python -m scripts.seed_books
 ```
 This will add books like:
 

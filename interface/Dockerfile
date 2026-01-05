@@ -13,13 +13,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# Create persistent data directory
-RUN mkdir -p /app/data
+# Copy only the CLI code
+COPY interface ./interface
 
-# Copy backend code
-COPY book_service ./book_service
-
-EXPOSE 8000
-
-# Start FastAPI
-CMD ["uv", "run", "uvicorn", "book_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command: open shell (CLI is run manually)
+CMD ["bash"]

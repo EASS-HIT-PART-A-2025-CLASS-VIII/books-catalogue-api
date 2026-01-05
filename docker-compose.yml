@@ -1,11 +1,39 @@
+version: "3.9"
+
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: book_service/Dockerfile
+    container_name: books-backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - db
+
+  cli:
+    build:
+      context: .
+      dockerfile: interface/Dockerfile
+    container_name: books-cli
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
   db:
     image: postgres:15-alpine
     container_name: books-db
     environment:
-      - POSTGRES_USER=book
-      - POSTGRES_PASSWORD=book
-      - POSTGRES_DB=books
+      POSTGRES_USER: book
+      POSTGRES_PASSWORD: book
+      POSTGRES_DB: books
     ports:
       - "5432:5432"
     volumes:
