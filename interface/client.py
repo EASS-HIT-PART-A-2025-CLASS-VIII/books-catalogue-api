@@ -32,7 +32,7 @@ def _auth_headers(token: Optional[str]) -> dict[str, str]:
         return {}
 
     # Debugging output
-    print(f"Using token: {token}")
+    #print(f"Using token: {token}")
 
     return {"Authorization": f"Bearer {token}"}
 
