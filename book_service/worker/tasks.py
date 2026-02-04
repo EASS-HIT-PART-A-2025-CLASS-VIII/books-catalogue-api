@@ -15,27 +15,49 @@
 #     await asyncio.sleep(1)  # simulate work
 
 
-import time
-import redis
-from .main import cel  
+import asyncio
+import redis.asyncio as redis
+import logging
 
-r = redis.Redis(host='books-redis', port=6379, db=0)
+# הגדרת לוגר למעקב (מומלץ לתיעוד ב-EX3 notes)
+logger = logging.getLogger(__name__)
 
-@cel.task(name="refresh_catalog")
-def refresh_catalog():
-    lock_id = "refresh_lock"
+# חיבור ל-Redis (וודאי שה-host תואם למה שמוגדר ב-docker-compose שלך)
+redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
+
+async def refresh_books():
+    """
+    מבצע רענון של קטלוג הספרים בצורה אידמפוטנטית.
+    משתמש במנעול Redis אטומי למניעת הרצות כפולות ו-Deadlocks.
+    """
+    lock_key = "refresh_lock"
+ 
+    lock_acquired = await redis_client.set(lock_key, "1", nx=True, ex=30)
     
-    acquire_lock = r.set(lock_id, "true", ex=60, nx=True)
-    
-    if not acquire_lock:
-        print("Refresh already in progress, skipping...")
-        return "Skipped (Idempotent)"
+    if not lock_acquired:
+        logger.info("Refresh process skipped: Another instance is already running.")
+        return {"status": "skipped", "reason": "already_running"}
 
     try:
-        print("Starting background catalog refresh...")
-        time.sleep(5) 
-        print("Refresh completed successfully.")
-        return "Success"
+        logger.info("Starting book catalogue refresh...")
+        
+        await redis_client.set("books_last_refresh_status", "running")
+
+        await asyncio.sleep(5) 
+        
+        await redis_client.set("books_last_refresh_status", "completed")
+        logger.info("Refresh completed successfully.")
+        
+        return {"status": "success"}
+
+    except Exception as e:
+        logger.error(f"Error during refresh: {str(e)}")
+        await redis_client.set("books_last_refresh_status", "failed")
+        raise e
+
     finally:
- 
-        r.delete(lock_id)
+     
+        await redis_client.delete(lock_key)
+        logger.info("Refresh lock released.")
+
+
