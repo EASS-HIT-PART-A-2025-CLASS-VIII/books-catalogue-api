@@ -19,17 +19,12 @@ import asyncio
 import redis.asyncio as redis
 import logging
 
-# הגדרת לוגר למעקב (מומלץ לתיעוד ב-EX3 notes)
 logger = logging.getLogger(__name__)
 
-# חיבור ל-Redis (וודאי שה-host תואם למה שמוגדר ב-docker-compose שלך)
 redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 async def refresh_books():
-    """
-    מבצע רענון של קטלוג הספרים בצורה אידמפוטנטית.
-    משתמש במנעול Redis אטומי למניעת הרצות כפולות ו-Deadlocks.
-    """
+   
     lock_key = "refresh_lock"
  
     lock_acquired = await redis_client.set(lock_key, "1", nx=True, ex=30)
