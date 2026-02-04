@@ -1,23 +1,40 @@
 # filepath: interface/client.py
 
+# filepath: interface/client.py
 from __future__ import annotations
 
 import csv
 import os
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
-BASE_URL = os.getenv("BOOK_API_BASE_URL", "http://localhost:8000")
+# -----------------------
+# Configuration
+# -----------------------
+BASE_URL = os.getenv("BOOK_API_BASE_URL", "http://backend:8000")
 DEFAULT_TIMEOUT = 5.0
 
 
+# -----------------------
+# Errors
+# -----------------------
 class ClientError(RuntimeError):
-    """Friendly client error for network / HTTP failures.
+    """Friendly client error for network / HTTP failures."""
 
-    Raised by the client so the CLI can present a clean user-facing message
-    instead of a raw traceback.
-    """
+
+# -----------------------
+# Helpers
+# -----------------------
+def _auth_headers(token: Optional[str]) -> dict[str, str]:
+    """Return Authorization header if token exists."""
+    if not token:
+        return {}
+
+    # Debugging output
+    print(f"Using token: {token}")
+
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _handle_http_errors(exc: Exception, context: str) -> None:
@@ -25,12 +42,15 @@ def _handle_http_errors(exc: Exception, context: str) -> None:
         f"{context}\n"
         f"Backend URL: {BASE_URL}\n"
         f"Is the FastAPI backend running?\n"
-        f"Try: uv run uvicorn book_service.app.main:app --reload"
+        f"If using Docker: docker compose up\n"
+        f"If local: uv run uvicorn book_service.app.main:app --reload"
     ) from exc
 
 
+# -----------------------
+# Public API
+# -----------------------
 def health() -> dict[str, Any]:
-    """Check backend health."""
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
             resp = client.get(f"{BASE_URL}/healthz")
@@ -40,22 +60,49 @@ def health() -> dict[str, Any]:
         _handle_http_errors(exc, "Unable to contact backend health endpoint.")
 
 
-def list_books() -> list[dict[str, Any]]:
-    """Return all books."""
+def login(username: str, password: str) -> str:
+    """Login to the backend and return JWT token."""
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
-            resp = client.get(f"{BASE_URL}/books")
+            resp = client.post(
+                f"{BASE_URL}/token/login",
+                json={
+                    "username": username,
+                    "password": password,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            token = data.get("access_token")
+            if not token:
+                raise ClientError("Login succeeded but no access_token returned")
+
+            return token
+    except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+        _handle_http_errors(exc, f"Unable to login user '{username}'.")
+
+
+def list_books(token: Optional[str]) -> list[dict[str, Any]]:
+    try:
+        with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
+            resp = client.get(
+                f"{BASE_URL}/books",
+                headers=_auth_headers(token),
+            )
             resp.raise_for_status()
             return resp.json()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         _handle_http_errors(exc, "Unable to fetch books.")
 
 
-def read_book(book_id: int) -> dict[str, Any]:
-    """Return a single book or empty dict if not found."""
+def read_book(book_id: int, token: Optional[str]) -> dict[str, Any]:
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
-            resp = client.get(f"{BASE_URL}/books/{book_id}")
+            resp = client.get(
+                f"{BASE_URL}/books/{book_id}",
+                headers=_auth_headers(token),
+            )
             if resp.status_code == 404:
                 return {}
             resp.raise_for_status()
@@ -64,22 +111,27 @@ def read_book(book_id: int) -> dict[str, Any]:
         _handle_http_errors(exc, f"Unable to read book with id={book_id}.")
 
 
-def add_book(book: dict[str, Any]) -> dict[str, Any]:
-    """Create a new book."""
+def add_book(book: dict[str, Any], token: Optional[str]) -> dict[str, Any]:
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
-            resp = client.post(f"{BASE_URL}/books", json=book)
+            resp = client.post(
+                f"{BASE_URL}/books",
+                json=book,
+                headers=_auth_headers(token),
+            )
             resp.raise_for_status()
             return resp.json()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
         _handle_http_errors(exc, "Unable to add new book.")
 
 
-def delete_book(book_id: int) -> bool:
-    """Delete a book. Returns False if not found."""
+def delete_book(book_id: int, token: Optional[str]) -> bool:
     try:
         with httpx.Client(timeout=DEFAULT_TIMEOUT) as client:
-            resp = client.delete(f"{BASE_URL}/books/{book_id}")
+            resp = client.delete(
+                f"{BASE_URL}/books/{book_id}",
+                headers=_auth_headers(token),
+            )
             if resp.status_code == 404:
                 return False
             resp.raise_for_status()
@@ -88,9 +140,8 @@ def delete_book(book_id: int) -> bool:
         _handle_http_errors(exc, f"Unable to delete book with id={book_id}.")
 
 
-# Export books to CSV
-def export_books_csv(filepath: str) -> None:
-    books = list_books()
+def export_books_csv(filepath: str, token: Optional[str]) -> None:
+    books = list_books(token)
     if not books:
         return
 
@@ -98,3 +149,5 @@ def export_books_csv(filepath: str) -> None:
         writer = csv.DictWriter(f, fieldnames=books[0].keys())
         writer.writeheader()
         writer.writerows(books)
+
+

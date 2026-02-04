@@ -1,16 +1,21 @@
-# filepath: interface/cli.py
+# interface/cli.py
+
 from __future__ import annotations
 
 import typer
 from typing import Optional
-
 from . import client
+from .token_store import save_token, load_token
+
 
 app = typer.Typer(
     help="📚 Book Service CLI – Friendly interface for the Books Catalogue API"
 )
 
 
+# -----------------------
+# Health check
+# -----------------------
 @app.command()
 def health():
     """Check backend health."""
@@ -22,11 +27,15 @@ def health():
         raise typer.Exit(code=1)
 
 
+# -----------------------
+# List books
+# -----------------------
 @app.command(name="list")
 def list_books():
     """List all books."""
     try:
-        books = client.list_books()
+        token = load_token()
+        books = client.list_books(token)
     except client.ClientError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
@@ -57,6 +66,9 @@ def list_books():
     Console().print(table)
 
 
+# -----------------------
+# Add a new book (protected)
+# -----------------------
 @app.command()
 def add(
     title: str = typer.Option(..., prompt=True),
@@ -65,7 +77,13 @@ def add(
     year: int = typer.Option(..., prompt=True),
     genre: str = typer.Option(..., prompt=True),
 ):
-    """Add a new book."""
+    """Add a new book (requires login)."""
+
+    token = load_token()
+    if not token:
+        typer.echo("❌ No token found. Please login.")
+        raise typer.Exit(code=1)
+
     try:
         created = client.add_book(
             {
@@ -74,22 +92,26 @@ def add(
                 "description": description,
                 "year": year,
                 "genre": genre,
-            }
+            },
+            token
         )
         typer.echo(
-            f"✅ Added book (id={created['id']}): "
-            f"{created['title']} by {created['author']}"
+            f"✅ Added book (id={created['id']}): {created['title']} by {created['author']}"
         )
     except client.ClientError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
 
 
+# -----------------------
+# Read a book
+# -----------------------
 @app.command()
 def read(book_id: int):
     """Read a book by ID."""
     try:
-        book = client.read_book(book_id)
+        token = load_token()
+        book = client.read_book(book_id, token)
     except client.ClientError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
@@ -101,11 +123,18 @@ def read(book_id: int):
     typer.echo(book)
 
 
+# -----------------------
+# Delete a book (protected)
+# -----------------------
 @app.command()
 def delete(book_id: int):
     """Delete a book by ID."""
+    token = load_token()
+    if not token:
+        typer.echo("❌ No token found. Please login.")
+        raise typer.Exit(code=1)
     try:
-        success = client.delete_book(book_id)
+        success = client.delete_book(book_id, token)
     except client.ClientError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
@@ -117,20 +146,53 @@ def delete(book_id: int):
     typer.echo(f"🗑 Deleted book with ID {book_id}")
 
 
+# -----------------------
+# Export books to CSV
+# -----------------------
 @app.command()
 def export(
     filepath: Optional[str] = typer.Option(
         "books.csv", help="CSV file path to export books"
     )
 ):
-    """Export all books to CSV (EX02 small extra)."""
+    """Export all books to CSV."""
+    token = load_token()
+    if not token:
+        typer.echo("❌ No token found. Please login.")
+        raise typer.Exit(code=1)
     try:
-        client.export_books_csv(filepath)
+        client.export_books_csv(filepath, token)
         typer.echo(f"📁 Exported books to {filepath}")
     except client.ClientError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1)
 
 
+# -----------------------
+# Async refresh command
+# -----------------------
+@app.command()
+def refresh():
+    """Trigger async refresh (EX3)."""
+    import subprocess
+    subprocess.run(["python", "-m", "scripts.refresh"])
+    typer.echo("🔄 Async refresh triggered.")
+
+
+@app.command()
+def login(username: str, password: str):
+    """Login to get JWT token"""
+    try:
+        token = client.login(username, password)
+        save_token(token)
+        typer.echo("✅ Login successful! Token stored.")
+    except client.ClientError as exc:
+        typer.echo(f"❌ Login failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
+
+
+

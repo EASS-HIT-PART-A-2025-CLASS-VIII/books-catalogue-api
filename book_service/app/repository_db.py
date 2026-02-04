@@ -1,4 +1,6 @@
-from typing import Optional, Sequence
+# book_service/app/repository_db.py
+
+from typing import Optional, Sequence, List
 from sqlmodel import Session, select
 from .models import Book, BookCreate
 
@@ -63,3 +65,24 @@ class BookRepository:
         
         self.session.commit()
         return count
+    
+    def search(
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        year: int | None = None,
+        genre: str | None = None,
+    ) -> List[Book]:
+
+        stmt = select(Book)
+
+        if title:
+            stmt = stmt.where(Book.title.ilike(f"%{title}%"))
+        if author:
+            stmt = stmt.where(Book.author.ilike(f"%{author}%"))
+        if year:
+            stmt = stmt.where(Book.year == year)
+        if genre:
+            stmt = stmt.where(Book.genre.ilike(f"%{genre}%"))
+
+        return List(self.session.scalars(stmt).all())

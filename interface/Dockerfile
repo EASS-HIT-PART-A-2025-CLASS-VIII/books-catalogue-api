@@ -1,3 +1,5 @@
+# interface/Dockerfile
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +17,9 @@ RUN uv sync --frozen --no-dev
 
 # Copy only the CLI code
 COPY interface ./interface
+
+# Copy the scripts folder so refresh.py is available
+COPY scripts ./scripts
 
 # Default command: open shell (CLI is run manually)
 CMD ["bash"]

@@ -62,10 +62,6 @@ def client_fixture(session: Session) -> Generator[TestClient, None, None]:
         yield test_client
     app.dependency_overrides.clear()
 
-# @pytest.fixture(autouse=True)
-# def reset_memory_repo():
-#     """Reset the in-memory repository before each test."""
-#     _memory_repo.delete_all()
 
 
 

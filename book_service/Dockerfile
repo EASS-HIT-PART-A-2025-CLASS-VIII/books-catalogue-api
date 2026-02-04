@@ -1,8 +1,12 @@
+# book_service/Dockerfile
+
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/book_service"
 
 WORKDIR /app
 
@@ -23,3 +27,5 @@ EXPOSE 8000
 
 # Start FastAPI
 CMD ["uv", "run", "uvicorn", "book_service.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+

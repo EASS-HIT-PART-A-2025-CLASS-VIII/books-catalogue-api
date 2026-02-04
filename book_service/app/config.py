@@ -1,6 +1,8 @@
 # filepath: book_service/app/config.py
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+
 
 
 class Settings(BaseSettings):
@@ -12,6 +14,14 @@ class Settings(BaseSettings):
     database_echo: bool = False
     pool_size: int = 5
     pool_timeout: int = 30
+
+    # ---- JWT settings ----
+    jwt_secret: str = "dev-secret"
+    jwt_issuer: str = "book-service"
+    jwt_audience: str = "book-clients"
+    jwt_expiry_minutes: int = 30
+   
+
 
     @property
     def database_url(self) -> str:

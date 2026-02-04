@@ -1,3 +1,5 @@
+# book_service/app/main.py
+
 from __future__ import annotations
 import uuid
 import logging
@@ -7,13 +9,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from .database import engine, SettingsDep
-from .dependencies import RepositoryDep
+from .dependencies import RepositoryDep, require_role
 from .models import Book, BookCreate
+from .auth import router as auth_router
+from fastapi import Query
+from fastapi import Depends
+# from .deps import require_role
+
 
 logger = logging.getLogger("book-service")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 app = FastAPI(title="Book Service", version="0.5.0")
+app.include_router(auth_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8501", "http://localhost:5173"],
@@ -55,6 +64,7 @@ def list_books(repository: RepositoryDep) -> list[Book]:
 def create_book(
     payload: BookCreate,
     repository: RepositoryDep,
+    token: dict = Depends(require_role("editor")),
 ) -> Book:
     """Create a new book."""
     book = repository.create(payload)
@@ -88,6 +98,26 @@ def delete_book(book_id: int, repository: RepositoryDep) -> None:
         )
     repository.delete(book_id)
     logger.info("book.deleted id=%s", book_id)
+
+@app.get("/books/search", response_model=list[Book], tags=["books"])
+def search_books(
+    repository: RepositoryDep,
+    title: str | None = Query(None),
+    author: str | None = Query(None),
+    year: int | None = Query(None),
+    genre: str | None = Query(None),
+) -> list[Book]:
+    """
+    Search books by optional filters.
+    """
+    return list(
+        repository.search(
+            title=title,
+            author=author,
+            year=year,
+            genre=genre,
+        )
+    )
 
 
 

@@ -1,7 +1,8 @@
 # filepath: book_service/app/models.py
 from __future__ import annotations
-from pydantic import BaseModel, Field, model_validator
-from sqlmodel import SQLModel, Field
+from pydantic import model_validator
+from sqlmodel import SQLModel, Field 
+
 from typing import Optional
 
 
@@ -45,3 +46,8 @@ class BookCreate(BookBase):
         return self
 
 
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    password_hash: str
+    role: str = "user"
